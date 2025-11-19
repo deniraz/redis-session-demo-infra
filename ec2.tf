@@ -1,8 +1,7 @@
 ##############################################
-# EC2 Instance for Java Redis Session Demo
+# AMI Selection Logic
 ##############################################
 
-# Ubuntu 22.04 AMI
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"]
@@ -13,8 +12,32 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+data "aws_ami" "amazon_linux_2023" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+}
+
+locals {
+  selected_ami = (
+    var.os_type == "ubuntu"
+    ? data.aws_ami.ubuntu.id
+    : data.aws_ami.amazon_linux_2023.id
+  )
+
+  user_data_file = (
+    var.os_type == "ubuntu"
+    ? "${path.module}/user-data-ubuntu.sh"
+    : "${path.module}/user-data-amazon-linux.sh"
+  )
+}
+
 ##############################################
-# IAM Role + Inline S3 Policy (GetObject + ListBucket)
+# IAM Role + Policy + Instance Profile
 ##############################################
 
 resource "aws_iam_role" "ec2_role" {
@@ -40,12 +63,12 @@ resource "aws_iam_role_policy" "s3_access" {
       {
         Effect = "Allow"
         Action = ["s3:GetObject"]
-        Resource = "arn:aws:s3:::sdenira-redis-alb-demo/*"
+        Resource = "arn:aws:s3:::${var.bucket_name}/*"
       },
       {
         Effect = "Allow"
         Action = ["s3:ListBucket"]
-        Resource = "arn:aws:s3:::sdenira-redis-alb-demo"
+        Resource = "arn:aws:s3:::${var.bucket_name}"
       }
     ]
   })
@@ -63,7 +86,7 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 resource "aws_instance" "app" {
   count = 2
 
-  ami                         = data.aws_ami.ubuntu.id
+  ami                         = local.selected_ami
   instance_type               = var.instance_type
   subnet_id                   = element([aws_subnet.public_a.id, aws_subnet.public_b.id], count.index)
   vpc_security_group_ids      = [aws_security_group.ec2_sg.id]
@@ -71,23 +94,19 @@ resource "aws_instance" "app" {
   associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.ec2_profile.name
 
-  # Required for cloud-init with IMDSv2
   metadata_options {
     http_tokens = "required"
   }
 
-  ##############################################
-  # FIX: Use RAW user_data (NO BASE64 ENCODING)
-  ##############################################
-  user_data = templatefile("${path.module}/user-data.sh", {
-    region     = var.region
-    bucket     = var.bucket_name
+  user_data = templatefile(local.user_data_file, {
+    region        = var.region
+    bucket        = var.bucket_name
     bucket_region = var.bucket_region
-    db_host    = aws_db_instance.pg.address
-    db_name    = var.db_name
-    db_user    = var.db_username
-    db_pass    = var.db_password
-    redis_host = aws_elasticache_cluster.redis.cache_nodes[0].address
+    db_host       = aws_db_instance.pg.address
+    db_name       = var.db_name
+    db_user       = var.db_username
+    db_pass       = var.db_password
+    redis_host    = aws_elasticache_cluster.redis.cache_nodes[0].address
   })
 
   tags = {
@@ -95,9 +114,9 @@ resource "aws_instance" "app" {
   }
 
   depends_on = [
+    aws_iam_instance_profile.ec2_profile,
     aws_db_instance.pg,
-    aws_elasticache_cluster.redis,
-    aws_iam_instance_profile.ec2_profile
+    aws_elasticache_cluster.redis
   ]
 }
 

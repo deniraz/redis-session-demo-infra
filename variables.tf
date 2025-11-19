@@ -28,6 +28,17 @@ variable "instance_type" {
   default = "t3.micro"
 }
 
+variable "os_type" {
+  type    = string
+  description = "ubuntu | amazon-linux"
+  default = "ubuntu"
+  # validation {
+  #   condition = var.os_type == "ubuntu" || var.os_type == "amazon-linux"
+  #   error_message = "os_type must be either 'ubuntu' or 'amazon-linux'."
+  # }
+}
+
+
 variable "allowed_ip" {
   type        = string
   default     = "0.0.0.0/0"
