@@ -17,11 +17,10 @@ The infrastructure provisions:
 - CloudWatch Dashboard for Redis monitoring
 - IAM roles, security groups, and user-data provisioning
 
-High-level flow:
-```
-Client → ALB → EC2 instances → Redis (session)  
-                             → RDS (database)
-```
+## Architecture Diagram
+
+![Architecture Diagram](assets/architecture-diagram.png)
+
 ---
 
 ## Folder Structure
