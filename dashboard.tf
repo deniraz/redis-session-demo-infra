@@ -1,3 +1,8 @@
+##############################################
+# CloudWatch Dashboard for Redis Metrics
+# - Displays key Redis performance metrics
+# - Includes: connections, CPU, memory, hits/misses
+##############################################
 resource "aws_cloudwatch_dashboard" "redis_dashboard" {
   dashboard_name = "${var.project}-redis-dashboard"
 
@@ -5,7 +10,9 @@ resource "aws_cloudwatch_dashboard" "redis_dashboard" {
     widgets = [
 
       ##############################################
-      # 1. CurrConnections
+      # 1. Current Connections
+      # - Shows the number of active Redis client connections
+      # - Useful for tracking load and connection spikes
       ##############################################
       {
         "type"  : "metric",
@@ -27,6 +34,8 @@ resource "aws_cloudwatch_dashboard" "redis_dashboard" {
 
       ##############################################
       # 2. CPU Utilization
+      # - Displays Redis node CPU usage
+      # - Helps monitor performance bottlenecks
       ##############################################
       {
         "type"  : "metric",
@@ -48,6 +57,8 @@ resource "aws_cloudwatch_dashboard" "redis_dashboard" {
 
       ##############################################
       # 3. Freeable Memory
+      # - Shows available memory in bytes
+      # - Important for diagnosing memory pressure
       ##############################################
       {
         "type"  : "metric",
@@ -69,6 +80,8 @@ resource "aws_cloudwatch_dashboard" "redis_dashboard" {
 
       ##############################################
       # 4. CacheHits vs CacheMisses
+      # - Tracks how often Redis returns cached data vs misses
+      # - Good indicator of cache effectiveness
       ##############################################
       {
         "type"  : "metric",
